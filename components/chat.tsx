@@ -25,7 +25,7 @@ export default function Chat({ user }: {
 
     const chatMessagesRef = collection(db, 'chat');
     const Query = query(chatMessagesRef, orderBy('creationTime'));
-    const [chatData]: [chatData: chatDoc[] | undefined] = useCollectionData(Query);
+    const [chatData] = useCollectionData(Query);
     const [isPending, startTransition] = useTransition();
 
     const handleFormSubmit = ({ message }: { message: string }) => {

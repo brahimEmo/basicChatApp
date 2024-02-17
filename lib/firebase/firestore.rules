@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+  	match /chat/documents {
+    	allow read : if isSignedIn();
+      allow read, write: if request.auth.token.id == userId && exists(/databases/$(database)/documents/tokens/$(request.auth.uid)/sessions/$(request.auth.token.sessionToken))
+    }
+  
+    match /chat/{chatId} {
+      allow write: if isSignedIn() && isDocumentOwner();
+    }
+    
+    match /users/{user} {
+      allow read: if isSignedIn() && request.auth.token.uid == user;
+    }
+  }
+
+  function isSignedIn() {
+    return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.token.uid))
+  }
+
+  function isDocumentOwner() {
+    return request.auth.uid == request.resourses.data.authorId;
+  }
+
+}

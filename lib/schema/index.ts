@@ -9,3 +9,9 @@ export type chatDoc = DocumentData & {
     type: 'string' | 'file',
     fileUrl: string,
 }
+
+export type reactionDoc = DocumentData & {
+    by: string,
+    creationTime: Timestamp,
+    type: number
+}

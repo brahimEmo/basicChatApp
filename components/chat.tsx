@@ -1,13 +1,13 @@
 "use client";
 
 import { BsSend } from "react-icons/bs";
-import { collection, addDoc, serverTimestamp, orderBy, query } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, orderBy, query, limitToLast, onSnapshot } from "firebase/firestore";
 import { useForm } from "react-hook-form";
 import { auth, db } from "@/lib/firebase";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { useTransition } from "react";
-import { useCollectionData } from 'react-firebase-hooks/firestore'
+import ChatMessage from "./chatMessage";
+import { useRef, useTransition, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { chatDoc } from "@/lib/schema";
 import { User, signOut } from "firebase/auth";
@@ -17,6 +17,8 @@ export default function Chat({ user }: {
     user: User | null
 }) {
 
+    const chatRef = useRef<HTMLElement | null>(null);
+
     const form = useForm({
         defaultValues: {
             message: '',
@@ -25,8 +27,28 @@ export default function Chat({ user }: {
 
     const chatMessagesRef = collection(db, 'chat');
     const Query = query(chatMessagesRef, orderBy('creationTime'));
-    const [chatData] = useCollectionData(Query);
+    const [chatData]: [chatData: chatDoc[] | undefined] = useCollectionData(Query);
     const [isPending, startTransition] = useTransition();
+
+    useEffect(() => {
+        if (chatData !== undefined && chatRef.current !== null) {
+            chatRef.current.scrollTop = chatRef.current.scrollHeight;
+        }
+    }, [chatData]);
+
+    useEffect(() => {
+        const unsubscribe = onSnapshot(Query, (snapshot) => {
+            const data: any = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+            setChatData(data);
+        });
+
+        return () => {
+            unsubscribe();
+        };
+    }, []);
 
     const handleFormSubmit = ({ message }: { message: string }) => {
 
@@ -34,7 +56,7 @@ export default function Chat({ user }: {
 
         if (message.trim().length > 1) {
             startTransition(async () => {
-                const data: chatDoc = {
+                const data: any = {
                     authorId: user.uid,
                     authorName: user.displayName as string,
                     content: message,
@@ -66,33 +88,9 @@ export default function Chat({ user }: {
                 </div>
                 <Button onClick={() => signOut(auth)} >Log out</Button>
             </section>
-            <section className="flex flex-1 flex-col gap-2 overflow-y-scroll py-4" >
+            <section className="flex flex-1 flex-col gap-2 overflow-y-scroll py-4" ref={chatRef} >
                 {chatData?.map((doc, index) => (
-                    <div key={index} className={cn("max-w-[300px] bg-white p-2 rounded-br-3xl", {
-                        'bg-blue-300 ml-auto rounded-br-none rounded-bl-3xl': doc.authorId === user?.uid
-                    })} >
-                        <div className="flex items-center gap-2" >
-                            <div className="w-8 h-8 border-4 bg-black rounded-full">
-                                <img
-                                    src={doc.icon}
-                                    className="w-full h-full rounded-full overflow-hidden"
-                                    alt="User Icon"
-                                />
-                            </div>
-                            <span className=" text-sm font-bold" >{doc.authorName}</span>
-                            <span className=" text-xs font-semibold" >{doc.creationTime?.toDate().getFullYear()}-{doc.creationTime?.toDate().getMonth() + 1}-{doc.creationTime?.toDate().getDate()}</span>
-                        </div>
-                        <div>
-                            {doc.content}
-                            {doc.type === 'file' &&
-                                <div className="mt-2 rounded-lg overflow-hidden" >
-                                    <img
-                                        src={doc.fileUrl ?? ""}
-                                    />
-                                </div>
-                            }
-                        </div>
-                    </div>
+                    <ChatMessage doc={doc} key={index} user={user} />
                 ))}
             </section>
             <section className="bg-white rounded-t-none rounded-b-2xl relative" >
@@ -105,7 +103,7 @@ export default function Chat({ user }: {
                                 <FormItem>
                                     <FormControl>
                                         <Textarea
-                                            className="placeholder:text-black font-semibold pt-4 min-h-[40px] border-none resize-none disabled:hidden"
+                                            className="placeholder:text-black font-semibold pt-4 min-h-[40px] border-none resize-none"
                                             {...field}
                                             disabled={isPending}
                                             placeholder="Write here ..."

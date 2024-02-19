@@ -26,8 +26,8 @@ export default function Chat({ user }: {
     });
 
     const chatMessagesRef = collection(db, 'chat');
-    const Query = query(chatMessagesRef, orderBy('creationTime'));
-    const [chatData]: [chatData: chatDoc[] | undefined] = useCollectionData(Query);
+    const Query = query(chatMessagesRef, orderBy('creationTime'), limitToLast(25));
+    const [chatData, setChatData]  = useState<chatDoc[] | undefined>(undefined);
     const [isPending, startTransition] = useTransition();
 
     useEffect(() => {
